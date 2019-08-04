@@ -1,8 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
+import os
 
-USERNAME = '>a<'
-PASSWORD = 'I love you'
+USERNAME = '6a17'
+PASSWORD = 'kinghung123'
 
 LOGIN_DATA = {
     'username': USERNAME,
@@ -19,9 +20,11 @@ class MoodleSession(requests.Session):
         self.cookies.set(' MOODLEID_', cMOODLEID_)
 
 def main():
+
+    result_text_file = open("results.txt", mode="w", encoding="UTF-8")
+
     with MoodleSession() as s:
         s.post(LOGIN_URL, data=LOGIN_DATA)
-        # s.set_moodle_cookies('mm73omrv0jvhopvpvck1sbcth2', 'h81w2f3Evt', '%25B6%25CDO%251B')
         mathematics_department_page = s.get(MATHEMATICS_DEPARTMENT_URL)
 
         soup_mathdep = BeautifulSoup(mathematics_department_page.text, 'html5lib')
@@ -31,18 +34,39 @@ def main():
         for i in range(1,5):
             id_name = 'section-' + str(i)
             pastpaper_folder_tr = soup_mathdep.find('tr', attrs={'id': id_name})
-            folder_urls = find_folder_urls(pastpaper_folder_tr)
+
             folder_name = find_tr_title(pastpaper_folder_tr)
+            print("[***]Fetching URL data in " + folder_name)
+
+            folder_urls = find_folder_urls(pastpaper_folder_tr)
+
             pastpaper_tree[folder_name] = folder_urls
 
             for key in pastpaper_tree[folder_name]:
                 folder_url = pastpaper_tree[folder_name][key]['url']
+                print("[   ]Fetching URL data in " + key)
                 pastpaper_page = BeautifulSoup(s.get(folder_url).text, 'html5lib')
 
                 pastpaper_tree[folder_name][key]['pastpapers'] = find_pdf_urls(pastpaper_page)
 
+        result_text_file.write(str(pastpaper_tree))
+
+        md("downloads")
+        for term in pastpaper_tree:
+            md("/".join(["downloads",term]))
+            for level in pastpaper_tree[term]:
+                md("/".join(["downloads",term,level]))
+                for pastpaper in pastpaper_tree[term][level]['pastpapers']:
+                    download_url = pastpaper_tree[term][level]['pastpapers'][pastpaper]  
+                    if not os.path.exists("/".join(["downloads",term,level,pastpaper])):
+                        result = s.get(download_url)
+                        print("[   ]Downloaded " + pastpaper)
+                        open("/".join(["downloads",term,level,pastpaper]), 'wb').write(result.content)
+                    else:
+                        print("/".join(["downloads",term,level,pastpaper]) + " is not downloaded because the file already exists.")
+
         
-        print(pastpaper_tree)
+        
         
 
 def find_folder_urls(pastpaper_folder_tr):
@@ -52,7 +76,6 @@ def find_folder_urls(pastpaper_folder_tr):
 
     for a in pastpaper_folder_a:
         title = a.span.contents[0]
-        print({'url': a.attrs['href']})
         pastpaper_folder_urls[title] = {'url': a.attrs['href']}
     
     return pastpaper_folder_urls
@@ -68,8 +91,15 @@ def find_pdf_urls(pastpaper_folder_page):
         a = tr.td.a
         index = a.contents[1].replace('\xa0', '')
         pastpaper_url[index] = (a.attrs['href'])
-        print({index: a.attrs['href']})
     return pastpaper_url
+
+def md(folder_name):
+    if not os.path.exists(folder_name):
+        os.mkdir(folder_name)
+        print("[***]Created folder "+ folder_name)
+    else:
+        print(folder_name + " is not created because the folder already exists.")
+        
 
 if __name__ == "__main__":
     main()
