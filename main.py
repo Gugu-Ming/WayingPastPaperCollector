@@ -2,8 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-USERNAME = '6a17'
-PASSWORD = 'kinghung123'
+USERNAME = 'WTFK'
+PASSWORD = 'CHEMISTRY'
 
 LOGIN_DATA = {
     'username': USERNAME,
